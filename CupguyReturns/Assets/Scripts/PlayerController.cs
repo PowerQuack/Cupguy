@@ -4,9 +4,14 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    public float walkSpeed;
+    public float runSpeed;
     public float jumpForce;
     private float moveInput;
+
+    public float dashSpeed;
+    private bool isDashing;
+    private float dashTimer;
+    public float dashTime;
 
     private bool isJumping;
     private bool isGrounded;
@@ -15,7 +20,7 @@ public class PlayerController : MonoBehaviour
     public LayerMask whatIsGround;
 
     private float jumpTimer;
-    public float jumpTime;
+    public float jumpTimeLeft;
 
     private Rigidbody2D rb2d;
     private CircleCollider2D cc2d;
@@ -27,23 +32,45 @@ public class PlayerController : MonoBehaviour
         cc2d = GetComponent<CircleCollider2D>();
     }
 
-    //FixedUpdate is called at a fixed interval and is independent of frame rate. Put physics code here.
-    void FixedUpdate()
-    {
-        moveInput = Input.GetAxisRaw("Horizontal"); //set moveInput for further use
-        
-        var horizontalMovement = Input.GetAxisRaw("Horizontal"); //horizontal move
-        rb2d.velocity = new Vector2(moveInput * walkSpeed, rb2d.velocity.y);
-    }
-
     void Update()
     {
+        Run();
+        Jump();
+        Dash();
+        PlayerSpriteFlip();
+
         isGrounded = Physics2D.OverlapCircle(wheelsPosition.position, groundCheckRadius, whatIsGround); //check if player is on the ground or not
 
+        if (isGrounded == false && Input.GetButtonDown("A")) //aerial parry
+        {
+            //parry
+        }
+
+        if (Input.GetAxisRaw("Vertical") == -1 && isGrounded == true) //player crouch
+        {
+            cc2d.enabled = false;
+            moveInput = 0; //make sure the player can't move when he crouches
+        }
+        else
+        {
+            cc2d.enabled = true;
+        }
+
+    }
+    private void Run()
+    {
+        moveInput = Input.GetAxisRaw("Horizontal"); //set moveInput for further use
+
+        var horizontalMovement = Input.GetAxisRaw("Horizontal"); //horizontal move
+        rb2d.velocity = new Vector2(moveInput * runSpeed, rb2d.velocity.y);
+    }
+
+    private void Jump()
+    {
         if (Input.GetButtonDown("A") && isGrounded == true) //player jump
         {
-            rb2d.velocity = Vector2.up * jumpForce;
-            jumpTimer = jumpTime;
+            rb2d.velocity = new Vector2(rb2d.velocity.x, jumpForce);
+            jumpTimer = jumpTimeLeft;
             isJumping = true;
         }
 
@@ -51,7 +78,7 @@ public class PlayerController : MonoBehaviour
         {
             if (jumpTimer > 0)
             {
-                rb2d.velocity = Vector2.up * jumpForce;
+                rb2d.velocity = new Vector2(rb2d.velocity.x, jumpForce);
                 jumpTimer -= Time.deltaTime;
             }
             else //make the player fall
@@ -64,22 +91,39 @@ public class PlayerController : MonoBehaviour
         {
             isJumping = false;
         }
+    }
 
-        if (isGrounded == false && Input.GetButtonDown("A"))
+    private void Dash()
+    {
+        if(Input.GetButton("Y")) //check if player is dashing and in which direction
         {
-            //parry
-        }
+            Debug.Log("Start of dash");
 
-        if (Input.GetAxisRaw("Vertical") == -1 && isGrounded == true)
-        {
-            Debug.Log("Crouch!");
-            //cc2d.SetActive(false);
-        }
+            if (dashTimer <= 0)
+            {
+                rb2d.velocity = Vector2.zero; //make sure the velocity gets back to zero
+                dashTimer = dashTime;
+                Debug.Log("End of dash");
+            }
+            else
+            {
+                dashTimer -= Time.deltaTime; //can't spam dash
 
+                if (Input.GetAxisRaw("Horizontal") != 0)
+                {
+                    rb2d.velocity = new Vector2(moveInput * dashSpeed, rb2d.velocity.y);
+                }
+            }
+        }
+    }
+
+    private void PlayerSpriteFlip()
+    {
         if (moveInput > 0) //player is always fracing the direction he's going
         {
             transform.eulerAngles = new Vector3(0, 0, 0);
-        } else if (moveInput < 0)
+        }
+        else if (moveInput < 0)
         {
             transform.eulerAngles = new Vector3(0, 180, 0);
         }
