@@ -4,14 +4,17 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
+    #region Variables
+    private bool canRun = true;
     public float runSpeed;
     public float jumpForce;
     private float moveInput;
 
-    public float dashSpeed;
+    private bool canDash = true;
     private bool isDashing;
-    private float dashTimer;
-    public float dashTime;
+    public float dashSpeed;
+    public float dashCooldown;
+    public float dashDuration;
 
     private bool isJumping;
     private bool isGrounded;
@@ -24,12 +27,17 @@ public class PlayerController : MonoBehaviour
 
     private Rigidbody2D rb2d;
     private CircleCollider2D cc2d;
+    private SpriteRenderer bowlFace;
+    private float baseGravity;
+    #endregion
 
     // Use this for initialization
     void Start()
     {
         rb2d = GetComponent<Rigidbody2D>();
         cc2d = GetComponent<CircleCollider2D>();
+        bowlFace = transform.GetChild(0).GetComponent<SpriteRenderer>();
+        baseGravity = rb2d.gravityScale;
     }
 
     void Update()
@@ -37,6 +45,7 @@ public class PlayerController : MonoBehaviour
         Run();
         Jump();
         Dash();
+        Crouch();
         PlayerSpriteFlip();
 
         isGrounded = Physics2D.OverlapCircle(wheelsPosition.position, groundCheckRadius, whatIsGround); //check if player is on the ground or not
@@ -45,36 +54,29 @@ public class PlayerController : MonoBehaviour
         {
             //parry
         }
-
-        if (Input.GetAxisRaw("Vertical") == -1 && isGrounded == true) //player crouch
-        {
-            cc2d.enabled = false;
-            moveInput = 0; //make sure the player can't move when he crouches
-        }
-        else
-        {
-            cc2d.enabled = true;
-        }
-
     }
+
     private void Run()
     {
-        moveInput = Input.GetAxisRaw("Horizontal"); //set moveInput for further use
+        if (canRun == true && isDashing == false)
+        {
+            moveInput = Input.GetAxisRaw("Horizontal"); //set moveInput for further use
 
-        var horizontalMovement = Input.GetAxisRaw("Horizontal"); //horizontal move
-        rb2d.velocity = new Vector2(moveInput * runSpeed, rb2d.velocity.y);
+            var horizontalMovement = Input.GetAxisRaw("Horizontal"); //horizontal move
+            rb2d.velocity = new Vector2(moveInput * runSpeed, rb2d.velocity.y);
+        }
     }
 
     private void Jump()
     {
-        if (Input.GetButtonDown("A") && isGrounded == true) //player jump
+        if (Input.GetButtonDown("A") && isGrounded == true && isDashing == false) //player jump
         {
             rb2d.velocity = new Vector2(rb2d.velocity.x, jumpForce);
             jumpTimer = jumpTimeLeft;
             isJumping = true;
         }
 
-        if (Input.GetButton("A") && isJumping == true) //the player can hold A to jump higher
+        if (Input.GetButton("A") && isJumping == true && isDashing == false) //the player can hold A to jump higher
         {
             if (jumpTimer > 0)
             {
@@ -95,25 +97,44 @@ public class PlayerController : MonoBehaviour
 
     private void Dash()
     {
-        if(Input.GetButton("Y")) //check if player is dashing and in which direction
+        if(Input.GetButtonDown("Y") && canDash == true) //check if player is dashing and in which direction
         {
-            Debug.Log("Start of dash");
+            isDashing = true;
+            rb2d.gravityScale = 0; //make sure the dash is straight
+            rb2d.velocity = Vector2.zero; //make sure ancient velocity doesn't add with the added force
+            rb2d.AddForce(new Vector2(moveInput, 0f) * dashSpeed, ForceMode2D.Impulse);
+            StartCoroutine(DashDuration());
+            StartCoroutine(DashCooldown());
+            Debug.Log("Dash");
+        }
+    }
 
-            if (dashTimer <= 0)
-            {
-                rb2d.velocity = Vector2.zero; //make sure the velocity gets back to zero
-                dashTimer = dashTime;
-                Debug.Log("End of dash");
-            }
-            else
-            {
-                dashTimer -= Time.deltaTime; //can't spam dash
+    private IEnumerator DashCooldown()
+    {
+        yield return new WaitForSecondsRealtime(dashCooldown);
+        canDash = true;
+        Debug.Log("cooldownEnd");
+    }
 
-                if (Input.GetAxisRaw("Horizontal") != 0)
-                {
-                    rb2d.velocity = new Vector2(moveInput * dashSpeed, rb2d.velocity.y);
-                }
-            }
+    private IEnumerator DashDuration()
+    {
+        yield return new WaitForSecondsRealtime(dashDuration);
+        rb2d.velocity = Vector2.zero;
+        isDashing = false;
+        rb2d.gravityScale = baseGravity;
+    }
+
+    private void Crouch()
+    {
+        if (Input.GetAxisRaw("Vertical") < 0 && isGrounded == true) //player crouch
+        {
+            cc2d.enabled = false;
+            canRun = false;
+        }
+        else
+        {
+            cc2d.enabled = true;
+            canRun = true;
         }
     }
 
@@ -121,11 +142,11 @@ public class PlayerController : MonoBehaviour
     {
         if (moveInput > 0) //player is always fracing the direction he's going
         {
-            transform.eulerAngles = new Vector3(0, 0, 0);
+            bowlFace.flipX = false;
         }
         else if (moveInput < 0)
         {
-            transform.eulerAngles = new Vector3(0, 180, 0);
+            bowlFace.flipX = true;
         }
     }
 }
