@@ -29,6 +29,8 @@ public class PlayerController : MonoBehaviour
     private CircleCollider2D cc2d;
     private SpriteRenderer bowlFace;
     private float baseGravity;
+
+    public Animator animator;
     #endregion
 
     // Use this for initialization
@@ -100,6 +102,7 @@ public class PlayerController : MonoBehaviour
         if(Input.GetButtonDown("Y") && canDash == true) //check if player is dashing and in which direction
         {
             isDashing = true;
+            canDash = false;
             rb2d.gravityScale = 0; //make sure the dash is straight
             rb2d.velocity = Vector2.zero; //make sure ancient velocity doesn't add with the added force
             rb2d.AddForce(new Vector2(moveInput, 0f) * dashSpeed, ForceMode2D.Impulse);
@@ -130,11 +133,13 @@ public class PlayerController : MonoBehaviour
         {
             cc2d.enabled = false;
             canRun = false;
+            //animator.Play("Player_Crouch");
         }
         else
         {
             cc2d.enabled = true;
             canRun = true;
+            //animator.Play("Player_Idle");
         }
     }
 
