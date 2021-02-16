@@ -9,6 +9,7 @@ public class PlayerController : MonoBehaviour
     public float runSpeed;
     public float jumpForce;
     private float moveInput;
+    private bool facingRight = false;
 
     private bool canDash = true;
     private bool isDashing;
@@ -27,8 +28,10 @@ public class PlayerController : MonoBehaviour
 
     private Rigidbody2D rb2d;
     private CircleCollider2D cc2d;
-    private SpriteRenderer bowlFace;
     private float baseGravity;
+
+    public Transform SnapFirePoint;
+    public GameObject SnapFirePrefab;
 
     public Animator animator;
     #endregion
@@ -38,7 +41,6 @@ public class PlayerController : MonoBehaviour
     {
         rb2d = GetComponent<Rigidbody2D>();
         cc2d = GetComponent<CircleCollider2D>();
-        bowlFace = transform.GetChild(0).GetComponent<SpriteRenderer>();
         baseGravity = rb2d.gravityScale;
     }
 
@@ -49,6 +51,7 @@ public class PlayerController : MonoBehaviour
         Dash();
         Crouch();
         PlayerSpriteFlip();
+        SnapFire();
 
         isGrounded = Physics2D.OverlapCircle(wheelsPosition.position, groundCheckRadius, whatIsGround); //check if player is on the ground or not
 
@@ -64,7 +67,7 @@ public class PlayerController : MonoBehaviour
         {
             moveInput = Input.GetAxisRaw("Horizontal"); //set moveInput for further use
 
-            var horizontalMovement = Input.GetAxisRaw("Horizontal"); //horizontal move
+            var move = Input.GetAxisRaw("Horizontal"); //horizontal move
             rb2d.velocity = new Vector2(moveInput * runSpeed, rb2d.velocity.y);
         }
     }
@@ -143,15 +146,25 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    private void SnapFire()
+    {
+        if (Input.GetButton("X") && isDashing == false)
+        {
+            Instantiate(SnapFirePrefab, SnapFirePoint.position, SnapFirePoint.rotation);
+        }
+    }
+
     private void PlayerSpriteFlip()
     {
-        if (moveInput > 0) //player is always fracing the direction he's going
+        if (moveInput > 0 && facingRight == true) //player is always fracing the direction he's going
         {
-            bowlFace.flipX = false;
+            facingRight = !facingRight;
+            transform.Rotate(0, 180, 0);
         }
-        else if (moveInput < 0)
+        else if (moveInput < 0 && !facingRight)
         {
-            bowlFace.flipX = true;
+            facingRight = !facingRight;
+            transform.Rotate(0, 180, 0);
         }
     }
 }
