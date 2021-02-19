@@ -30,8 +30,10 @@ public class PlayerController : MonoBehaviour
     private CircleCollider2D cc2d;
     private float baseGravity;
 
+    private bool canFire = true;
     public Transform SnapFirePoint;
     public GameObject SnapFirePrefab;
+    public float snapFireSpeed;
 
     public Animator animator;
     #endregion
@@ -54,11 +56,6 @@ public class PlayerController : MonoBehaviour
         SnapFire();
 
         isGrounded = Physics2D.OverlapCircle(wheelsPosition.position, groundCheckRadius, whatIsGround); //check if player is on the ground or not
-
-        if (isGrounded == false && Input.GetButtonDown("A")) //aerial parry
-        {
-            //parry
-        }
     }
 
     private void Run()
@@ -100,9 +97,17 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    /*private void Parry()
+    {
+        if (Input.GetButtonDown("A") && isJumping == true && isDashing == false && isParrying == false)
+        {
+            isParrying = true;
+        }
+    }*/
+
     private void Dash()
     {
-        if(Input.GetButtonDown("Y") && canDash == true) //check if player is dashing and in which direction
+        if (Input.GetButtonDown("Y") && canDash == true) //check if player is dashing and in which direction
         {
             isDashing = true;
             canDash = false;
@@ -132,7 +137,7 @@ public class PlayerController : MonoBehaviour
 
     private void Crouch()
     {
-        if (Input.GetAxisRaw("Vertical") < 0 && isGrounded == true) //player crouch
+        if (Input.GetAxisRaw("Vertical") < -0.75 && isGrounded == true) //player crouch
         {
             cc2d.enabled = false;
             canRun = false;
@@ -148,10 +153,18 @@ public class PlayerController : MonoBehaviour
 
     private void SnapFire()
     {
-        if (Input.GetButton("X") && isDashing == false)
+        if (Input.GetButton("X") && isDashing == false && canFire == true)
         {
-            Instantiate(SnapFirePrefab, SnapFirePoint.position, SnapFirePoint.rotation);
+            Instantiate(SnapFirePrefab, SnapFirePoint.position, SnapFirePoint.rotation); //projectile spawn point
+            StartCoroutine(SnapFireCooldown());
+            canFire = false;
         }
+    }
+
+    private IEnumerator SnapFireCooldown()
+    {
+        yield return new WaitForSecondsRealtime(snapFireSpeed); //player can't spam fire
+        canFire = true;
     }
 
     private void PlayerSpriteFlip()
