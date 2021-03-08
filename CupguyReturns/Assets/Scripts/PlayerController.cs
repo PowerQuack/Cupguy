@@ -34,6 +34,7 @@ public class PlayerController : MonoBehaviour
     public Transform SnapFirePoint;
     public GameObject SnapFirePrefab;
     public float snapFireSpeed;
+    public GameObject ArmPivot;
 
     public Animator animator;
     #endregion
@@ -158,6 +159,21 @@ public class PlayerController : MonoBehaviour
             Instantiate(SnapFirePrefab, SnapFirePoint.position, SnapFirePoint.rotation); //projectile spawn point
             StartCoroutine(SnapFireCooldown());
             canFire = false;
+        }
+    }
+
+    private void Aim()
+    {
+        if (Input.GetAxis("Left_Trigger") < 0.5f && isDashing == false && canFire == true)
+        {
+            canRun = false;
+            Debug.Log(canRun);
+            //Input.GetAxis("Left_Joystick") == aim direction
+            ArmPivot.transform.eulerAngles = new Vector3(0, 0, 90);
+        }
+        else
+        {
+            canRun = true;
         }
     }
 
