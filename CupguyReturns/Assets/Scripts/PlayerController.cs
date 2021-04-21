@@ -11,6 +11,10 @@ public class PlayerController : MonoBehaviour
     private float moveInput;
     private bool facingRight = false;
 
+    private bool isCrouching;
+    private bool isParrying;
+    private bool isRunning;
+
     private bool canDash = true;
     private bool isDashing;
     public float dashSpeed;
@@ -31,32 +35,73 @@ public class PlayerController : MonoBehaviour
     private float baseGravity;
 
     private bool canFire = true;
-    public Transform SnapFirePoint;
+    public Transform snapFirePoint;
     public GameObject SnapFirePrefab;
     public float snapFireSpeed;
-    public GameObject ArmPivot;
 
     public Animator animator;
+
     #endregion
 
-    // Use this for initialization
-    void Start()
+    public void Awake()
     {
         rb2d = GetComponent<Rigidbody2D>();
         cc2d = GetComponent<CircleCollider2D>();
         baseGravity = rb2d.gravityScale;
+        animator = GetComponent<Animator>();
     }
 
     void Update()
     {
+        isGrounded = Physics2D.OverlapCircle(wheelsPosition.position, groundCheckRadius, whatIsGround); //check if player is on the ground or not
+
         Run();
         Jump();
+        Parry();
         Dash();
         Crouch();
         PlayerSpriteFlip();
+        //Aim();
         SnapFire();
+        BowlFace();
+    }
 
-        isGrounded = Physics2D.OverlapCircle(wheelsPosition.position, groundCheckRadius, whatIsGround); //check if player is on the ground or not
+    private void BowlFace()
+    {
+        if (isGrounded == true && isCrouching == false && isRunning == false)
+        {
+            animator.Play("Idle");
+        }
+
+        if (canFire == false && isGrounded == true && isCrouching == false && isDashing == false && isRunning == false)
+        {
+            animator.Play("Idle_Shooting");
+        }
+
+        if (isGrounded == true && isCrouching == false && isDashing == false && isRunning == true)
+        {
+            animator.Play("Run");
+        }
+
+        if (canFire == false && isGrounded == true && isCrouching == false && isDashing == false && isRunning == true)
+        {
+            animator.Play("Run_Shooting");
+        }
+
+        if (isGrounded == false)
+        {
+            animator.Play("Jump");
+        }
+
+        if (isCrouching == true)
+        {
+            animator.Play("Crouch");
+        }
+
+        if (isCrouching == true && canFire == false)
+        {
+            animator.Play("Crouch_Shooting");
+        }
     }
 
     private void Run()
@@ -64,9 +109,17 @@ public class PlayerController : MonoBehaviour
         if (canRun == true && isDashing == false)
         {
             moveInput = Input.GetAxisRaw("Horizontal"); //set moveInput for further use
-
             var move = Input.GetAxisRaw("Horizontal"); //horizontal move
             rb2d.velocity = new Vector2(moveInput * runSpeed, rb2d.velocity.y);
+        }
+
+        if (rb2d.velocity != Vector2.zero)
+        {
+            isRunning = true;
+        }
+        else
+        {
+            isRunning = false;
         }
     }
 
@@ -98,13 +151,13 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    /*private void Parry()
+    private void Parry()
     {
         if (Input.GetButtonDown("A") && isJumping == true && isDashing == false && isParrying == false)
         {
             isParrying = true;
         }
-    }*/
+    }
 
     private void Dash()
     {
@@ -117,7 +170,6 @@ public class PlayerController : MonoBehaviour
             rb2d.AddForce(new Vector2(moveInput, 0f) * dashSpeed, ForceMode2D.Impulse);
             StartCoroutine(DashDuration());
             StartCoroutine(DashCooldown());
-            Debug.Log("Dash");
         }
     }
 
@@ -125,7 +177,6 @@ public class PlayerController : MonoBehaviour
     {
         yield return new WaitForSecondsRealtime(dashCooldown);
         canDash = true;
-        Debug.Log("cooldownEnd");
     }
 
     private IEnumerator DashDuration()
@@ -142,13 +193,15 @@ public class PlayerController : MonoBehaviour
         {
             cc2d.enabled = false;
             canRun = false;
-            //animator.Play("Player_Crouch");
+            isCrouching = true;
+            snapFirePoint.localPosition = new Vector3(1.26f, -0.5f, 0f);
         }
         else
         {
             cc2d.enabled = true;
             canRun = true;
-            //animator.Play("Player_Idle");
+            isCrouching = false;
+            snapFirePoint.localPosition = new Vector3(1.26f, 0f, 0f);
         }
     }
 
@@ -156,7 +209,7 @@ public class PlayerController : MonoBehaviour
     {
         if (Input.GetButton("X") && isDashing == false && canFire == true)
         {
-            Instantiate(SnapFirePrefab, SnapFirePoint.position, SnapFirePoint.rotation); //projectile spawn point
+            Instantiate(SnapFirePrefab, snapFirePoint.position, snapFirePoint.rotation); //projectile spawn point
             StartCoroutine(SnapFireCooldown());
             canFire = false;
         }
@@ -164,17 +217,17 @@ public class PlayerController : MonoBehaviour
 
     private void Aim()
     {
-        if (Input.GetAxis("Left_Trigger") < 0.5f && isDashing == false && canFire == true)
+        if (Input.GetButton("Right_Bumper") && isDashing == false && isGrounded == true)
         {
             canRun = false;
-            Debug.Log(canRun);
-            //Input.GetAxis("Left_Joystick") == aim direction
-            ArmPivot.transform.eulerAngles = new Vector3(0, 0, 90);
+            Debug.Log("Right_Bumper");
         }
         else
         {
             canRun = true;
         }
+
+       //loat angle = Mathf.Atan2(float y, float x) * Mathf.Rad2Deg // rotation du bras, choppe l'angle
     }
 
     private IEnumerator SnapFireCooldown()
