@@ -5,24 +5,30 @@ using UnityEngine;
 public class PlayerController : MonoBehaviour
 {
     #region Variables
+
+    // States
     private bool canRun = true;
+    private bool canCrouch = true;
+    private bool canJump = true;
+    public bool isCrouching;
+    public bool isParrying;
+    public bool isRunning;
+    public bool isDashing;
+    public bool isJumping;
+    public bool isGrounded;
+    public bool isAiming;
+    public bool canFire = true;
+
     public float runSpeed;
     public float jumpForce;
     private float moveInput;
-    private bool facingRight = false;
-
-    private bool isCrouching;
-    private bool isParrying;
-    private bool isRunning;
+    public bool facingRight;
 
     private bool canDash = true;
-    private bool isDashing;
     public float dashSpeed;
     public float dashCooldown;
     public float dashDuration;
 
-    private bool isJumping;
-    private bool isGrounded;
     public Transform wheelsPosition;
     public float groundCheckRadius;
     public LayerMask whatIsGround;
@@ -34,21 +40,22 @@ public class PlayerController : MonoBehaviour
     private CircleCollider2D cc2d;
     private float baseGravity;
 
-    private bool canFire = true;
     public Transform snapFirePoint;
     public GameObject SnapFirePrefab;
     public float snapFireSpeed;
 
-    public Animator animator;
+    public SpriteRenderer playerSprite;
+    public SpriteRenderer armSprite;
+
+    public GameObject firingArm;
 
     #endregion
 
-    public void Awake()
+    private void Awake()
     {
         rb2d = GetComponent<Rigidbody2D>();
         cc2d = GetComponent<CircleCollider2D>();
         baseGravity = rb2d.gravityScale;
-        animator = GetComponent<Animator>();
     }
 
     void Update()
@@ -61,55 +68,16 @@ public class PlayerController : MonoBehaviour
         Dash();
         Crouch();
         PlayerSpriteFlip();
-        //Aim();
+        Aim();
         SnapFire();
-        BowlFace();
-    }
-
-    private void BowlFace()
-    {
-        if (isGrounded == true && isCrouching == false && isRunning == false)
-        {
-            animator.Play("Idle");
-        }
-
-        if (canFire == false && isGrounded == true && isCrouching == false && isDashing == false && isRunning == false)
-        {
-            animator.Play("Idle_Shooting");
-        }
-
-        if (isGrounded == true && isCrouching == false && isDashing == false && isRunning == true)
-        {
-            animator.Play("Run");
-        }
-
-        if (canFire == false && isGrounded == true && isCrouching == false && isDashing == false && isRunning == true)
-        {
-            animator.Play("Run_Shooting");
-        }
-
-        if (isGrounded == false)
-        {
-            animator.Play("Jump");
-        }
-
-        if (isCrouching == true)
-        {
-            animator.Play("Crouch");
-        }
-
-        if (isCrouching == true && canFire == false)
-        {
-            animator.Play("Crouch_Shooting");
-        }
     }
 
     private void Run()
     {
-        if (canRun == true && isDashing == false)
+        if (canRun == true && isDashing == false && isCrouching == false)
         {
-            moveInput = Input.GetAxisRaw("Horizontal"); //set moveInput for further use
-            var move = Input.GetAxisRaw("Horizontal"); //horizontal move
+            moveInput = Input.GetAxis("Horizontal"); //set moveInput for further use
+            var move = Input.GetAxis("Horizontal"); //horizontal move
             rb2d.velocity = new Vector2(moveInput * runSpeed, rb2d.velocity.y);
         }
 
@@ -125,7 +93,7 @@ public class PlayerController : MonoBehaviour
 
     private void Jump()
     {
-        if (Input.GetButtonDown("A") && isGrounded == true && isDashing == false) //player jump
+        if (Input.GetButtonDown("A") && isGrounded == true && isDashing == false && canJump == true) //player jump
         {
             rb2d.velocity = new Vector2(rb2d.velocity.x, jumpForce);
             jumpTimer = jumpTimeLeft;
@@ -189,12 +157,20 @@ public class PlayerController : MonoBehaviour
 
     private void Crouch()
     {
-        if (Input.GetAxisRaw("Vertical") < -0.75 && isGrounded == true) //player crouch
+        if (Input.GetAxisRaw("Vertical") < -0.75 && isGrounded == true && canCrouch == true) //player crouch
         {
             cc2d.enabled = false;
             canRun = false;
             isCrouching = true;
-            snapFirePoint.localPosition = new Vector3(1.26f, -0.5f, 0f);
+
+            if (facingRight == true)
+            {
+                snapFirePoint.localPosition = new Vector3(1.26f, -0.5f, 0f);
+            }
+            else
+            {
+                snapFirePoint.localPosition = new Vector3(1.26f, 0.5f, 0f);
+            }
         }
         else
         {
@@ -220,14 +196,28 @@ public class PlayerController : MonoBehaviour
         if (Input.GetButton("Right_Bumper") && isDashing == false && isGrounded == true)
         {
             canRun = false;
-            Debug.Log("Right_Bumper");
+            canCrouch = false;
+            canJump = false;
+            isAiming = true;
+
+            Vector2 direction = new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical"));
+
+            float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+
+            firingArm.transform.localRotation = Quaternion.Euler(0, 0, Mathf.Round(angle/45f) * 45f);
+
+            if (facingRight == false)
+            {
+                armSprite.flipX = false;
+            }
         }
         else
         {
             canRun = true;
+            canCrouch = true;
+            canJump = true;
+            isAiming = false;
         }
-
-       //loat angle = Mathf.Atan2(float y, float x) * Mathf.Rad2Deg // rotation du bras, choppe l'angle
     }
 
     private IEnumerator SnapFireCooldown()
@@ -238,15 +228,19 @@ public class PlayerController : MonoBehaviour
 
     private void PlayerSpriteFlip()
     {
-        if (moveInput > 0 && facingRight == true) //player is always fracing the direction he's going
+        if (moveInput > 0 && !facingRight) //player is always fracing the direction he's going
         {
             facingRight = !facingRight;
-            transform.Rotate(0, 180, 0);
+            playerSprite.flipX = false;
+            armSprite.flipX = false;
+            firingArm.transform.localRotation = Quaternion.identity;
         }
-        else if (moveInput < 0 && !facingRight)
+        else if (moveInput < 0 && facingRight)
         {
             facingRight = !facingRight;
-            transform.Rotate(0, 180, 0);
+            playerSprite.flipX = true;
+            armSprite.flipX = true;
+            firingArm.transform.localRotation = Quaternion.Euler(0, 0, 180);
         }
     }
 }
